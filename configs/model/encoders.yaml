@@ -1,0 +1,22 @@
+# Standalone weight paths are supplied after export, never old DP.ckpt paths.
+vision:
+  type: resnet18
+  output_dim: 512
+  share_weights: false
+  history: 3
+  freeze: true
+  external:
+    weights: null
+  wrist:
+    weights: null
+tactile:
+  type: resnet18_single_channel
+  output_dim: 512
+  share_weights: false
+  history: 3
+  freeze: true
+  depth_encoding: policy_normalized  # or raw_sdk_depth; declare before loading data
+  tactile_0:
+    weights: null
+  tactile_1:
+    weights: null

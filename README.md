@@ -1,8 +1,8 @@
 # Visuotactile Flow Policy
 
-Independent repository for the data and action contracts of a future UR5e
-visuotactile flow policy. This first stage contains no model, training loop,
-sampler, encoder wrapper, or robot deployment implementation.
+Independent repository for the data, action, and encoder contracts of a future
+UR5e visuotactile flow policy. It contains no Flow Expert, condition adapter,
+training loop, inference sampler, or robot deployment implementation.
 
 ## Confirmed robot contract
 
@@ -12,7 +12,7 @@ The earlier USB tactile Diffusion Policy consumes three observations at about
 followed by measured gripper position divided by 255. External and wrist RGB
 come from separate ResNet18 encoders; tactile depth 0 and 1 likewise have
 separate single-channel ResNet18 encoders. Each branch yields 512 values per
-frame. This repository does not yet load those weights.
+frame. This repository loads exported standalone weights from the tactile DP.
 
 RGB acquisition is external 848×480 and wrist 640×480. Online processing
 converts BGR to RGB and resizes both to 320×240. The policy converts uint8 to
@@ -24,7 +24,68 @@ then applies ImageNet mean/std normalization. Each tactile worker emits
 These details were checked against the existing repository at
 `/home/pine/openpi/ros2_teleop_dataset/vision_RL/offline_RL/usb_insertion/`
 and the sibling `tactile_RL` implementation. They document compatibility;
-this package does not import or copy the old implementation or checkpoints.
+the runtime package does not import the old implementation or checkpoints.
+
+## Reused encoders
+
+The audited backbone is `torchvision.models.resnet18(weights=None)` with
+`fc=Identity`. All `BatchNorm2d` modules are replaced at the same module names
+with `GroupNorm(num_groups=num_channels//16, num_channels=num_channels)`;
+PyTorch defaults give `eps=1e-5` and `affine=True`. Thus the 64/128/256/512
+channel layers use 4/8/16/32 groups. A tactile branch replaces the RGB conv1
+with a single-channel convolution initialized from the **mean** of the RGB
+conv1 weights; loading the checkpoint then replaces that initialization with
+the trained weights. There are no other backbone architecture changes in the
+audited encoder path. Each RGB branch has 11,176,512 parameters; each tactile
+branch has 11,170,240.
+
+`VisionEncoder` and `TactileEncoder` each own two independent branches and
+return a dictionary of separate `[B,T,512]` features. They accept any positive
+history length `T`. They default to frozen branches. `freeze()` disables
+gradients and keeps the branch in eval mode even when the parent is switched
+to train mode; `unfreeze()` restores gradients. The new project must load
+exported weights before using a frozen branch for training or inference.
+
+RGB preprocessing assumes the acquisition layer has already converted BGR to
+RGB and resized to 320×240. `RGBPreprocessor` requires RGB `uint8` in
+`[B,T,3,H,W]` and applies `/255`, resize to 224×224, inference center crop to
+216×216, and ImageNet mean/std normalization. `TactilePreprocessor` requires
+`[B,T,1,288,384]` and an explicit `depth_encoding`: `raw_sdk_depth` applies
+`clip(depth/0.7,-1,1)` once; `policy_normalized` requires input in `[-1,1]`.
+Both modes then resize to 224×224 without RGB cropping or color normalization.
+The encoding declaration belongs in dataset metadata/configuration. A value
+mistakenly declared as raw cannot always be recognized as already normalized
+from its numeric range alone, so collection must preserve this provenance.
+
+Export portable weights from a trusted local old checkpoint without importing
+the old repository into this package:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 /home/pine/openpi/ros2_teleop_dataset/vision_RL/offline_RL/.venv/bin/python tools/export_legacy_encoders.py \
+  --checkpoint /home/pine/openpi/ros2_teleop_dataset/tactile_RL/offline_RL/usb_insertion/models/epoch800/DP.ckpt
+```
+
+This writes four `.pt` files and `metadata.json` to
+`artifacts/legacy_encoders/`, which Git ignores. Each `.pt` is a versioned
+state dictionary and can be loaded independently with
+`load_encoder_weights(branch, path, strict=True)`; the old `DP.ckpt` is not
+needed on another machine. The export records source checkpoint size, upstream
+commit, architecture, preprocessing, key prefixes, branch counts, and file
+sizes. It deliberately does not export old action or state normalizer values.
+
+Local parity verification is restricted to `tools/verify_legacy_encoder_parity.py`:
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 /home/pine/openpi/ros2_teleop_dataset/vision_RL/offline_RL/.venv/bin/python tools/verify_legacy_encoder_parity.py \
+  --checkpoint /home/pine/openpi/ros2_teleop_dataset/tactile_RL/offline_RL/usb_insertion/models/epoch800/DP.ckpt
+```
+
+The check compares all four branches from policy-facing RGB uint8 at 320×240
+and SDK-like depth converted once. It exercises both old and new preprocessing
+and reports feature shape and errors at CPU float32 with `atol=1e-5`,
+`rtol=1e-4`. The current four branches each have shape `[1,512]`, zero max
+and mean absolute error, and pass `allclose`. This verifies the encoder path,
+not camera acquisition, sensor calibration, GPU kernel parity, or the DP head.
 
 ## Action geometry
 
