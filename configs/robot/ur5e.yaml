@@ -1,0 +1,12 @@
+robot: ur5e
+control_frequency_hz: 30
+observation:
+  history: 3
+  agent_pos_dim: 7
+  cameras: [external_rgb, wrist_rgb]
+  tactile: [tactile_depth_0, tactile_depth_1]
+action:
+  horizon: 16
+  dim: 10
+  # Execution index requires a new latency and closed-loop experiment.
+  start_index: null

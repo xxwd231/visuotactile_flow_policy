@@ -1,0 +1,6 @@
+# Candidate only: new acquisition must preserve both measured future poses and
+# commanded targets. The training label choice requires an explicit experiment.
+action_label_source: measured_future
+observation_history: 3
+action_horizon: 16
+action_dim: 10

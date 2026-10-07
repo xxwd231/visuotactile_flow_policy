@@ -1,0 +1,4 @@
+# Training settings remain unset until new data and hardware budgets are known.
+normalizer: minmax
+normalizer_fit_split: train
+source: gaussian

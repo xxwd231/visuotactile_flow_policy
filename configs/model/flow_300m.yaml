@@ -1,0 +1,9 @@
+# UNVALIDATED PARAMETER TARGET. Count actual parameters after implementing the model.
+hidden_dim: 1024
+num_layers: 20
+num_heads: 16
+ffn_ratio: 4
+action_horizon: 16
+action_dim: 10
+cross_attention_every: 2
+time_conditioning: adaln_zero
