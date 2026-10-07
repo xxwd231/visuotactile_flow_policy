@@ -24,13 +24,13 @@ def test_action_label_source_enum_and_config():
         DataConfig(action_label_source="ambiguous")
 
 
-def test_robot_start_index_unset_and_model_target_labeled():
+def test_robot_start_index_unset_and_model_config():
     robot = yaml.safe_load((ROOT / "configs/robot/ur5e.yaml").read_text())
     assert robot["action"]["start_index"] is None
     model_path = ROOT / "configs/model/flow_300m.yaml"
-    assert "UNVALIDATED PARAMETER TARGET" in model_path.read_text()
     model = yaml.safe_load(model_path.read_text())
     assert (model["action_horizon"], model["action_dim"]) == (16, 10)
+    assert (model["hidden_dim"], model["num_layers"], model["num_heads"]) == (1024, 14, 16)
 
 
 def test_episode_preserves_both_target_channels_and_provenance():

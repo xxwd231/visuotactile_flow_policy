@@ -160,6 +160,33 @@ Use the existing Python environment; package installation is unnecessary:
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONDONTWRITEBYTECODE=1 /home/pine/openpi/ros2_teleop_dataset/vision_RL/offline_RL/.venv/bin/python -m pytest -q
 ```
 
-The model settings under `configs/model/` are an **UNVALIDATED PARAMETER
-TARGET**, not a verified 300M parameter count. Parameter size must be counted
-after the model is implemented.
+## Flow Action Expert
+
+The first `FlowActionExpert` is a standard Transformer / DiT-style action
+backbone: 14 blocks, width 1024, 16 heads of width 64, FFN ratio 4, and
+bidirectional self-attention over 16 action steps of dimension 10. Blocks
+2, 4, 6, 8, 10, 12, and 14 additionally cross-attend to condition tokens.
+Flow time enters self-attention and FFN through zero-initialized AdaLN-Zero
+modulation; vision, tactile, and state information enters through unmodulated
+cross-attention. The FFN uses `GELU(approximate="tanh")`. The action output
+head is zero-initialized, so a fresh model returns exactly zero velocity.
+Condition length `N` is variable; each sample needs at least one valid token.
+
+The verified Action Expert has **297,309,194 parameters**. The 14-layer
+setting replaces the earlier unverified 20-layer estimate, which omitted the
+per-block AdaLN-Zero modulation from its rough count. With frozen encoders,
+the parameter inventory is:
+
+| Component | Parameters | Trainable |
+| --- | ---: | ---: |
+| Vision encoders (2 × 11,176,512) | 22,353,024 | 0 |
+| Tactile encoders (2 × 11,170,240) | 22,340,480 | 0 |
+| Condition Adapter | 2,650,112 | 2,650,112 |
+| Flow Action Expert | 297,309,194 | 297,309,194 |
+| Total policy | 344,652,810 | 299,959,306 |
+
+The DiT-style architecture is independent of the Flow Matching objective.
+This stage implements only `v_theta(x_t, t, C)`; there is no CFM objective,
+ODE sampler, training loop, or robot deployment. Run
+`python tools/inspect_flow_expert.py` for the live parameter breakdown;
+`--smoke` additionally checks full-model CUDA bf16 inference where supported.
