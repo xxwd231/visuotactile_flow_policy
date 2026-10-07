@@ -1,0 +1,12 @@
+model_dim: 1024
+encoder_feature_dim: 512
+state_dim: 7
+num_modalities: 5
+max_history: 8
+modality_order:
+  - external_rgb
+  - wrist_rgb
+  - tactile_depth_0
+  - tactile_depth_1
+  - agent_pos
+token_order: time_major

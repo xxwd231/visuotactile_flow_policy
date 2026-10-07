@@ -1,7 +1,7 @@
 # Visuotactile Flow Policy
 
-Independent repository for the data, action, and encoder contracts of a future
-UR5e visuotactile flow policy. It contains no Flow Expert, condition adapter,
+Independent repository for the data, action, encoder, and condition contracts
+of a future UR5e visuotactile flow policy. It contains no Flow Expert,
 training loop, inference sampler, or robot deployment implementation.
 
 ## Confirmed robot contract
@@ -56,6 +56,21 @@ Both modes then resize to 224×224 without RGB cropping or color normalization.
 The encoding declaration belongs in dataset metadata/configuration. A value
 mistakenly declared as raw cannot always be recognized as already normalized
 from its numeric range alone, so collection must preserve this provenance.
+
+## Condition tokens
+
+The first condition representation uses 3 observation frames × (2 RGB + 2
+tactile + 1 state) = **15 condition tokens**, each with **1024 dimensions**.
+The public order is time-major: at each time step, external RGB, wrist RGB,
+tactile depth 0, tactile depth 1, then agent position. Time 0 is the oldest
+frame. The four encoder features remain separate before `ConditionAdapter`;
+each has its own `LayerNorm(512) → Linear(512,1024)` projection. The already
+normalized 7-D state uses `Linear(7,512) → SiLU → Linear(512,1024)`.
+Learned modality and temporal embeddings are added before a final LayerNorm.
+An optional boolean validity mask travels in the same token order, with
+`True` meaning valid; repeated frames are not automatically marked invalid.
+`ConditionAdapter` does not perform attention-based multimodal fusion. The
+Flow Action Expert will later attend to these tokens.
 
 Export portable weights from a trusted local old checkpoint without importing
 the old repository into this package:
