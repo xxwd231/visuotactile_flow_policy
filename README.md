@@ -1,8 +1,9 @@
 # Visuotactile Flow Policy
 
-Independent repository for the data, action, encoder, condition, and Flow
-Action Expert contracts of a future UR5e visuotactile policy. It contains no
-training loop, inference sampler, or robot deployment implementation.
+Independent repository for the data, action, encoder, condition, Flow Action
+Expert, and Stage-1 policy contracts of a future UR5e visuotactile policy.
+It contains a CFM objective and Euler inference sampler, but no training loop
+or robot deployment implementation.
 
 ## Flow core contract
 
@@ -45,8 +46,9 @@ from t=0 to t=1:
 x_(k+1) = x_k + (t_(k+1)-t_k) * v_theta(x_k,t_k,C)
 ```
 
-The result remains a **normalized action**. A future policy wrapper must
-denormalize it, decode it with `ActionCodec`, and form robot commands.
+The Euler result remains a **normalized action**. The Stage-1 policy core
+denormalizes it to fixed-anchor 10D encoded action. A future deployment
+boundary must decode it with `ActionCodec` and form robot commands.
 `NOISE_AT_ONE` uses the same objective and solver with reversed endpoints
 and velocity sign. Both YAML files declare an initial 10-step Euler recipe;
 10 expert forwards are not a 30 Hz real-time guarantee. Timing must later
@@ -120,7 +122,7 @@ Learned modality and temporal embeddings are added before a final LayerNorm.
 An optional boolean validity mask travels in the same token order, with
 `True` meaning valid; repeated frames are not automatically marked invalid.
 `ConditionAdapter` does not perform attention-based multimodal fusion. The
-Flow Action Expert will later attend to these tokens.
+Flow Action Expert attends to these tokens.
 
 Export portable weights from a trusted local old checkpoint without importing
 the old repository into this package:
@@ -233,10 +235,12 @@ last channel over `[N,H,D]` or `[N,T,D]`, maps ordinary training limits to
 `[-1,1]`, handles constant channels, and stores JSON-friendly version-1
 statistics. The new methods do not reinterpret that format.
 
-`FlowSource.sample(target_action, condition=None, history=None,
-generator=None)` defines an action-shaped source. Only `GaussianSource` exists
-today; it follows the target's shape, dtype, and device and accepts a seeded
-`torch.Generator`. No A2A implementation is present.
+`FlowTensorSpec(shape, device, dtype)` defines action-shaped allocation without
+a clean target. `GaussianSource.sample(spec, condition=None, history=None,
+generator=None)` draws from it and accepts a seeded `torch.Generator`.
+Training may construct a spec from a target tensor; inference constructs it
+from batch size, horizon, dimension, device, and dtype. No A2A implementation
+is present.
 
 ## Local checks
 
@@ -271,8 +275,47 @@ the parameter inventory is:
 | Flow Action Expert | 297,309,194 | 297,309,194 |
 | Total policy | 344,652,810 | 299,959,306 |
 
-The DiT-style architecture is independent of the Flow Matching objective.
-This stage implements only `v_theta(x_t, t, C)`; there is no CFM objective,
-ODE sampler, training loop, or robot deployment. Run
+The DiT-style architecture remains only `v_theta(x_t, t, C)`. The CFM
+objective and Euler solver are separate modules; there is no training loop
+or robot deployment. Run
 `python tools/inspect_flow_expert.py` for the live parameter breakdown;
 `--smoke` additionally checks full-model CUDA bf16 inference where supported.
+
+## Stage-1 policy and checkpoint
+
+`PolicyObservationBatch` takes three policy-facing frames: uint8 RGB
+`[B,3,3,240,320]` for each camera, normalized tactile depth
+`[B,3,1,288,384]` for each sensor, and measured `agent_pos[B,3,7]`.
+Every modality shares the device. Optional boolean masks `[B,3]` mark
+attention-valid tokens. **A false mask is not NaN sanitization**: invalid
+frames must still contain finite placeholder or reused values, because
+encoders run before attention masking. Tactile depth is already in roughly
+`[-1,1]`; SDK depth conversion belongs at the data or deployment boundary.
+
+`VisuotactileFlowPolicy.encode_condition()` sends both RGB streams to
+`VisionEncoder`, both depth streams to `TactileEncoder`, and normalizes
+`agent_pos` with `StructuredStateNormalizer` before `ConditionAdapter`.
+The Adapter keeps its time-major 15-token layout. For training,
+`compute_training_loss()` accepts an already encoded, fixed-anchor 10D
+action chunk, normalizes it with `StructuredActionNormalizer`, then calls
+the CFM objective and Expert. Neither the policy nor CFM calls
+`ActionCodec`. Both normalizers must be fitted or loaded beforehand.
+
+For inference, call `policy.eval()` and `sample_encoded_action()`. Gaussian
+noise and Euler accumulation use float32 state and time. The Expert may
+perform matmuls under an outer mixed-precision autocast context; its
+velocity is cast back to float32 before the Euler update. The policy
+denormalizes the final action and returns a fixed-anchor encoded 10D
+chunk. It does not decode absolute robot poses or issue commands. This
+float32 ODE contract is an initial numerical choice, not a performance claim.
+
+Checkpoint format v1 saves the complete policy model state (all four
+encoders, Adapter, and Expert), separate fitted action/state normalizer
+states, the model/flow/data/normalization config bundle, and optional
+dataset fingerprint, encoder provenance, source commit, and notes.
+Loading into a compatible preconstructed policy checks version and config,
+then restores model and normalizer states. The resulting checkpoint does
+not depend on legacy `DP.ckpt` or standalone encoder weights. Those weights
+are only an optional initialization source. Inspect the default module
+inventory with `python tools/inspect_policy_core.py`; this does not run
+inference or require encoder export files.

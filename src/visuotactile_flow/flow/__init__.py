@@ -1,4 +1,4 @@
-"""Flow endpoint, source, path, and time contracts; no objective or solver."""
+"""Flow source, path, time, CFM objective, and Euler solver contracts."""
 
 from .convention import FlowConvention
 from .objective import CFMObjectiveOutput, CFMTrainingBatch, ConditionalFlowMatchingObjective
