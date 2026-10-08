@@ -1,3 +1,4 @@
-from .base import FlowSource, GaussianSource
+from .base import FlowSource, FlowTensorSpec
+from .gaussian import GaussianSource
 
-__all__ = ["FlowSource", "GaussianSource"]
+__all__ = ["FlowSource", "FlowTensorSpec", "GaussianSource"]

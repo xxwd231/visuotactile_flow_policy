@@ -1,0 +1,9 @@
+convention: noise_at_zero
+source:
+  type: gaussian
+path:
+  type: linear
+time_sampler:
+  type: uniform
+  min_time: 0.0
+  max_time: 1.0

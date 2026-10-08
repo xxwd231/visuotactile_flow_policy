@@ -1,0 +1,12 @@
+# Flow time/direction recipe only; this model is not OpenPI.
+convention: noise_at_one
+source:
+  type: gaussian
+path:
+  type: linear
+time_sampler:
+  type: beta
+  alpha: 1.5
+  beta: 1.0
+  scale: 0.999
+  offset: 0.001

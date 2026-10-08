@@ -4,6 +4,26 @@ Independent repository for the data, action, encoder, condition, and Flow
 Action Expert contracts of a future UR5e visuotactile policy. It contains no
 training loop, inference sampler, or robot deployment implementation.
 
+## Flow core contract
+
+The Stage-1 standard CFM contract is defined in
+`configs/flow/standard_cfm.yaml`: a Gaussian source, linear conditional
+path, `NOISE_AT_ZERO`, and uniform model time in [0,1]. Source noise lives at
+t=0 and the clean action target at t=1. The alternative
+`configs/flow/openpi_style.yaml` uses `NOISE_AT_ONE` and scaled Beta time
+sampling as a time/direction recipe; this model is not OpenPI. The two paths
+are equivalent under time reversal, but a trained checkpoint's convention
+must not change mid-run.
+
+`FlowConvention` owns source/target endpoints and integration direction;
+`LinearConditionalFlowPath` owns interpolation and target velocity.
+`FlowTensorSpec` lets `GaussianSource` draw noise without a clean target
+during inference. Uniform sampling accepts a seeded `torch.Generator`.
+`BetaTimeSampler` currently uses the global PyTorch RNG and rejects a
+generator argument; optional time complementation must be explicit.
+Timestep features use float32 normalized-time sin/cos with periods from
+0.004 to 4.0 before the learned MLP. This stage has no CFM loss or solver.
+
 ## Confirmed robot contract
 
 The earlier USB tactile Diffusion Policy consumes three observations at about

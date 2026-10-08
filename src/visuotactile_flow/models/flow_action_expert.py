@@ -19,6 +19,8 @@ class FlowActionExpert(nn.Module):
         action_dim: int = 10,
         cross_attention_every: int = 2,
         time_embedding_dim: int = 256,
+        time_min_period: float = 4e-3,
+        time_max_period: float = 4.0,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
         adaln_zero: bool = True,
@@ -37,7 +39,9 @@ class FlowActionExpert(nn.Module):
         self.action_input_projection = nn.Linear(action_dim, hidden_dim)
         self.action_position_embedding = nn.Parameter(torch.zeros(1, action_horizon, hidden_dim))
         nn.init.normal_(self.action_position_embedding, std=0.02)
-        self.timestep_embedder = TimestepEmbedder(hidden_dim, time_embedding_dim)
+        self.timestep_embedder = TimestepEmbedder(
+            hidden_dim, time_embedding_dim, time_min_period, time_max_period
+        )
         self.cross_attention_block_indices = tuple(
             i for i in range(num_layers) if (i + 1) % cross_attention_every == 0
         )

@@ -67,9 +67,6 @@ def main() -> None:
     parser.add_argument("--smoke", action="store_true", help="run warm-up and three full-model CUDA bf16 forwards")
     args = parser.parse_args()
     config = yaml.safe_load((ROOT / "configs/model/flow_300m.yaml").read_text())
-    head_dim = config.pop("head_dim")
-    if config["hidden_dim"] // config["num_heads"] != head_dim:
-        raise ValueError("Configured head_dim disagrees with hidden_dim / num_heads")
     model = FlowActionExpert(**config)
     breakdown = parameter_breakdown(model)
     assert sum(breakdown.values()) == count(model), "Parameter breakdown is incomplete"

@@ -1,12 +1,13 @@
 hidden_dim: 1024
 num_layers: 14
 num_heads: 16
-head_dim: 64
 ffn_ratio: 4
 action_horizon: 16
 action_dim: 10
 cross_attention_every: 2
 time_embedding_dim: 256
+time_min_period: 0.004
+time_max_period: 4.0
 dropout: 0.0
 attention_dropout: 0.0
 adaln_zero: true

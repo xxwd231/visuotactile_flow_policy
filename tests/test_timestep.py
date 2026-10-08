@@ -2,6 +2,23 @@ import pytest
 import torch
 
 from visuotactile_flow.models import TimestepEmbedder
+from visuotactile_flow.models.timestep import sinusoidal_time_features
+
+
+def test_raw_sinusoidal_features_at_zero_and_distinct_times():
+    features = sinusoidal_time_features(torch.tensor([0.0, 0.5, 1.0]), 64)
+    assert features.shape == (3, 64)
+    torch.testing.assert_close(features[0, :32], torch.zeros(32), rtol=0, atol=0)
+    torch.testing.assert_close(features[0, 32:], torch.ones(32), rtol=0, atol=0)
+    assert torch.isfinite(features).all()
+    assert all(torch.linalg.vector_norm(features[i] - features[j]) > 1
+               for i, j in ((0, 1), (0, 2), (1, 2)))
+
+
+@pytest.mark.parametrize("minimum,maximum", [(0, 4), (-1, 4), (4, 4), (5, 4)])
+def test_invalid_periods(minimum, maximum):
+    with pytest.raises(ValueError, match="period"):
+        TimestepEmbedder(64, 32, minimum, maximum)
 
 
 def test_time_shapes_and_column_equivalence():

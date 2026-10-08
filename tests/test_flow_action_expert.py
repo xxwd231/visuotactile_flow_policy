@@ -1,5 +1,7 @@
 import pytest
 import torch
+import yaml
+from pathlib import Path
 
 from visuotactile_flow.models import FlowActionExpert
 
@@ -114,3 +116,11 @@ def test_cpu_bfloat16_autocast_forward():
         output = model(*inputs(batch=1))
     assert output.shape == (1, 16, 10)
     assert torch.isfinite(output).all()
+
+
+def test_full_yaml_direct_constructor_and_parameter_count():
+    config_path = Path(__file__).resolve().parents[1] / "configs/model/flow_300m.yaml"
+    config = yaml.safe_load(config_path.read_text())
+    with torch.device("meta"):
+        model = FlowActionExpert(**config)
+    assert sum(parameter.numel() for parameter in model.parameters()) == 297_309_194
