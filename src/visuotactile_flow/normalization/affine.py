@@ -167,6 +167,64 @@ class MinMaxNormalizerV2(_Affine):
         return self
 
 
+class LegacyDPLimitsNormalizer(_Affine):
+    """Exact legacy DP ``limits`` formula with fit_offset=True.
+
+    The old implementation casts fit data to float32 before computing stats.
+    Ignored channels retain unit scale and their small variations.
+    """
+
+    kind = "legacy_dp_limits"
+
+    def __init__(self, range_eps: float = 1e-4, output_min: float = -1.0,
+                 output_max: float = 1.0) -> None:
+        super().__init__()
+        if (not all(math.isfinite(v) for v in (range_eps, output_min, output_max))
+                or range_eps <= 0 or output_min >= output_max):
+            raise ValueError("Invalid legacy limits parameters")
+        self.range_eps = float(range_eps)
+        self.output_min = float(output_min)
+        self.output_max = float(output_max)
+
+    def fit(self, train_tensor: torch.Tensor) -> Self:
+        # Match the legacy normalizer's dtype=torch.float32 fit default.
+        values = fit_values(train_tensor).to(dtype=torch.float32)
+        low, high = values.amin(0), values.amax(0)
+        mean, std = values.mean(0), values.std(0)
+        raw_span = high - low
+        ignored = raw_span < self.range_eps
+        output_span = self.output_max - self.output_min
+        effective_span = torch.where(ignored, torch.full_like(raw_span, output_span), raw_span)
+        scale = output_span / effective_span
+        offset = self.output_min - scale * low
+        offset = torch.where(ignored, (self.output_max + self.output_min) / 2 - low, offset)
+        self.dimension = values.shape[-1]
+        self.scale = scale
+        self.offset = offset
+        self.floored_channels = ignored
+        self.stats = {"raw_min": low, "raw_max": high, "raw_mean": mean, "raw_std": std}
+        return self
+
+    def _parameters(self) -> dict:
+        return {"range_eps": self.range_eps, "output_min": self.output_min,
+                "output_max": self.output_max}
+
+    def load_state_dict(self, state: dict) -> Self:
+        if state.get("normalizer_version") != 2 or state.get("type") != self.kind:
+            raise ValueError("Unsupported normalizer state version or type")
+        params = state["parameters"]
+        self.__init__(range_eps=float(params["range_eps"]), output_min=float(params["output_min"]),
+                      output_max=float(params["output_max"]))
+        self._load(state, ("raw_min", "raw_max", "raw_mean", "raw_std"))
+        low, high = self.stats["raw_min"], self.stats["raw_max"]
+        if bool(torch.any(high < low)):
+            raise ValueError("Invalid legacy limits")
+        expected_ignored = high - low < self.range_eps
+        if not torch.equal(self.floored_channels, expected_ignored):
+            raise ValueError("Inconsistent legacy ignored channels")
+        return self
+
+
 class QuantileNormalizer(_Affine):
     kind = "quantile"
 

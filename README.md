@@ -167,9 +167,16 @@ normalization splits translation 3 / rotation 6 / gripper 1; structured state
 normalization splits joints 6 / gripper 1. Both serialize train-only statistics,
 floor flags, modes, model contract, and tactile provenance. The three action
 and two state YAML files are experimental candidates, not final choices.
-Min/max v2 sends near-constant channels to the output midpoint and restores
-their training center on inverse transformation; those tiny variations are
-intentionally discarded. Mean/std and quantile use configurable floors.
+`legacy_limits` exactly follows the old Diffusion Policy `limits` formula:
+for span below `range_eps`, scale is 1 and offset is `-input_min` when the
+output is `[-1,1]`. Small variation is preserved. `minmax` means the newer
+V2 safe midpoint-collapse method: it sends near-constant channels to the
+output midpoint and restores their training center on inverse transformation.
+These modes have different serialized types and must not be interchanged.
+Mean/std and quantile use configurable floors.
+The `fit_split=train` metadata field is a caller contract, not proof that
+`fit()` received training frames. Enforcing the split remains the future
+training/data pipeline's responsibility.
 `analyze_action_distribution` reports channel tails, horizon profiles, and
 Gaussian-source flow velocity scale. The older `MinMaxNormalizer` fits the
 last channel over `[N,H,D]` or `[N,T,D]`, maps ordinary training limits to

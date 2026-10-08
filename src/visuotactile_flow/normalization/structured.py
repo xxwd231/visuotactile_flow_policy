@@ -7,8 +7,8 @@ import torch
 
 from visuotactile_flow.data.schema import DataConfig
 
-from .affine import (FixedRangeNormalizer, IdentityNormalizer, MeanStdNormalizer,
-                     MinMaxNormalizerV2, QuantileNormalizer)
+from .affine import (FixedRangeNormalizer, IdentityNormalizer, LegacyDPLimitsNormalizer,
+                     MeanStdNormalizer, MinMaxNormalizerV2, QuantileNormalizer)
 from .base import check_input, fit_values
 from .spec import contract_metadata, validate_metadata
 
@@ -17,6 +17,7 @@ MODES = {
     "identity": IdentityNormalizer,
     "mean_std": MeanStdNormalizer,
     "minmax": MinMaxNormalizerV2,
+    "legacy_limits": LegacyDPLimitsNormalizer,
     "quantile": QuantileNormalizer,
     "fixed_range": FixedRangeNormalizer,
 }
@@ -97,9 +98,9 @@ class StructuredActionNormalizer(_Structured):
     feature = "action"
     dim = 10
     sections = (
-        ("translation", slice(0, 3), {"identity", "mean_std", "minmax", "quantile"}),
-        ("rotation", slice(3, 9), {"identity", "mean_std", "minmax", "quantile"}),
-        ("gripper", slice(9, 10), {"identity", "fixed_range", "mean_std", "minmax"}),
+        ("translation", slice(0, 3), {"identity", "mean_std", "minmax", "quantile", "legacy_limits"}),
+        ("rotation", slice(3, 9), {"identity", "mean_std", "minmax", "quantile", "legacy_limits"}),
+        ("gripper", slice(9, 10), {"identity", "fixed_range", "mean_std", "minmax", "legacy_limits"}),
     )
 
 
@@ -107,6 +108,6 @@ class StructuredStateNormalizer(_Structured):
     feature = "state"
     dim = 7
     sections = (
-        ("joints", slice(0, 6), {"mean_std", "minmax", "quantile"}),
-        ("gripper", slice(6, 7), {"fixed_range", "minmax"}),
+        ("joints", slice(0, 6), {"mean_std", "minmax", "quantile", "legacy_limits"}),
+        ("gripper", slice(6, 7), {"fixed_range", "minmax", "legacy_limits"}),
     )

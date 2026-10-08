@@ -1,3 +1,3 @@
-# Candidate matching the legacy per-channel limits policy.
-joints: {mode: minmax, range_eps: 0.0001}
-gripper: {mode: minmax, range_eps: 0.0001}
+# Exact legacy DP per-channel limits formula (fit_offset=True).
+joints: {mode: legacy_limits, range_eps: 0.0001}
+gripper: {mode: legacy_limits, range_eps: 0.0001}

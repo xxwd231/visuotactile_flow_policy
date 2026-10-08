@@ -1,4 +1,4 @@
-# Candidate approximating the legacy DP's per-channel limits behavior.
-translation: {mode: minmax, range_eps: 0.0001}
-rotation: {mode: minmax, range_eps: 0.0001}
-gripper: {mode: minmax, range_eps: 0.0001}
+# Exact legacy DP per-channel limits formula (fit_offset=True).
+translation: {mode: legacy_limits, range_eps: 0.0001}
+rotation: {mode: legacy_limits, range_eps: 0.0001}
+gripper: {mode: legacy_limits, range_eps: 0.0001}
