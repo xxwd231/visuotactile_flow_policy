@@ -319,3 +319,25 @@ not depend on legacy `DP.ckpt` or standalone encoder weights. Those weights
 are only an optional initialization source. Inspect the default module
 inventory with `python tools/inspect_policy_core.py`; this does not run
 inference or require encoder export files.
+
+## Synthetic learning gate
+
+`python tools/overfit_synthetic.py --device cuda` exercises the complete
+Stage-1 learning path with a **tiny test policy**. Fixed pixel projections
+replace the four ResNet branches, while the real ConditionAdapter, CFM
+objective, FlowActionExpert, normalizers, and Euler solver remain in use.
+Only the 3,648-parameter Adapter and 318,794-parameter tiny Expert are
+optimized (322,442 parameters total). The generated eight-example training
+set requires all five modality groups and horizon position to determine the
+target. Outputs go to the Git-ignored `outputs/synthetic_overfit/` directory.
+
+With seed 20261008 on CUDA, Phase A ran 600 steps: fixed CFM loss fell from
+1.715405 to 0.001021, and fixed-source Euler endpoint RMSE was 0.023418.
+Fresh-policy Phase B ran 1500 steps: fixed CFM loss fell from 1.937774 to
+0.024335, while seeded Euler RMSE fell from 1.384683 to 0.067808.
+Correct-condition RMSE was 0.065474 versus 1.480839 with cyclically
+shuffled observations and identical Gaussian noise. Both gates passed;
+the trained tiny-policy checkpoint reproduced its seeded sample after
+load. These results verify CFM learning plumbing, Euler endpoint
+improvement, and use of conditioning. They do not validate convergence of
+the 297M model, real robot performance, or the real data distribution.
