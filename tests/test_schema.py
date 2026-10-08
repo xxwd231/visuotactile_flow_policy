@@ -19,7 +19,13 @@ def test_action_and_observation_dimensions():
 
 
 def test_action_label_source_enum_and_config():
-    assert DataConfig(action_label_source="commanded_target").action_label_source is ActionLabelSource.COMMANDED_TARGET
+    assert DataConfig().action_label_source is ActionLabelSource.MEASURED_FUTURE
+    with pytest.raises(ValueError):
+        DataConfig(action_label_source="commanded_target")
+    with pytest.raises(ValueError):
+        DataConfig(tactile_representation_source="unspecified")
+    with pytest.raises(ValueError):
+        DataConfig(target_start_offset_steps=0)
     with pytest.raises(ValueError):
         DataConfig(action_label_source="ambiguous")
 

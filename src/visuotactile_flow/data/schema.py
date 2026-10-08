@@ -22,6 +22,11 @@ class ActionSource(StrEnum):
     UNKNOWN = "unknown"
 
 
+LEGACY_TACTILE_TRAIN_REPRESENTATION = "h264_decoded_rgb_difference_over_255"
+LEGACY_TACTILE_RUNTIME_REPRESENTATION = "raw_sdk_depth_clip_over_0p7"
+LEGACY_TACTILE_EQUIVALENCE = "approximate_unquantified"
+
+
 @dataclass(frozen=True)
 class ActionSpec:
     horizon: int = 16
@@ -52,12 +57,23 @@ class DataConfig:
     observation_history: int = 3
     action_horizon: int = 16
     action_dim: int = 10
+    state_dim: int = 7
+    control_frequency_hz: int = 30
+    target_start_offset_steps: int = 1
+    tactile_encoding: str = "policy_normalized"
+    tactile_representation_source: str = "raw_sdk_normalized"
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "action_label_source", ActionLabelSource(self.action_label_source))
         spec = ActionSpec()
-        if (self.observation_history, self.action_horizon, self.action_dim) != (3, spec.horizon, spec.action_dim):
-            raise ValueError("This interface requires Tobs=3, H=16, D=10")
+        expected = (ActionLabelSource.MEASURED_FUTURE, 3, spec.horizon, spec.action_dim, 7, 30, 1,
+                    "policy_normalized")
+        actual = (self.action_label_source, self.observation_history, self.action_horizon, self.action_dim,
+                  self.state_dim, self.control_frequency_hz, self.target_start_offset_steps, self.tactile_encoding)
+        if actual != expected:
+            raise ValueError("Unsupported TrainingDataContract v1")
+        if self.tactile_representation_source not in {"raw_sdk_normalized", "legacy_video_reconstructed"}:
+            raise ValueError("Unknown tactile representation source")
 
 
 @dataclass

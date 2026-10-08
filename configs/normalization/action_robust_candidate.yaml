@@ -1,0 +1,4 @@
+# Candidate only; quantile tails are intentionally not clipped.
+translation: {mode: quantile, q_low: 0.01, q_high: 0.99, quantile_span_floor: 0.0001}
+rotation: {mode: identity}
+gripper: {mode: fixed_range, input_min: 0.0, input_max: 1.0}

@@ -1,0 +1,4 @@
+# Candidate only; choose after inspecting new USB training data.
+translation: {mode: mean_std, std_floor: 0.0001}
+rotation: {mode: mean_std, std_floor: 0.0001}
+gripper: {mode: fixed_range, input_min: 0.0, input_max: 1.0}

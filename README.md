@@ -1,7 +1,7 @@
 # Visuotactile Flow Policy
 
-Independent repository for the data, action, encoder, and condition contracts
-of a future UR5e visuotactile flow policy. It contains no Flow Expert,
+Independent repository for the data, action, encoder, condition, and Flow
+Action Expert contracts of a future UR5e visuotactile policy. It contains no
 training loop, inference sampler, or robot deployment implementation.
 
 ## Confirmed robot contract
@@ -132,20 +132,49 @@ latency and closed-loop experiment.
 ## Data and normalization
 
 The `Episode` schema keeps measured TCP/gripper state and optional commanded
-TCP/gripper targets separately. `DataConfig.action_label_source` accepts
-`measured_future` or `commanded_target`. The default `measured_future` is a
-candidate only: new acquisition should save both, and a formal experiment
-must choose the training label. `TrainingSample` specifies three observation
-frames and a `[16,10]` encoded target. It reserves optional `action_history`
-for later work, without using it now.
+TCP/gripper targets separately. **TrainingDataContract v1** fixes the training
+label to `measured_future`; no commanded-target reader exists. Observations
+are aligned frames `t-2,t-1,t` at 30 Hz. The anchor is measured TCP at `t`;
+the target is measured future `t+1...t+16`, encoded as one fixed-anchor
+`[16,10]` chunk. State is six measured joint angles (radians) plus measured
+normalized gripper position `[0,1]`, giving seven dimensions.
+`TrainingSample` reserves optional `action_history` for later work.
+
+The tactile representation risk is recorded in the model contract:
+
+```yaml
+legacy_tactile_train_representation: h264_decoded_rgb_difference_over_255
+legacy_tactile_runtime_representation: raw_sdk_depth_clip_over_0p7
+equivalence: approximate_unquantified
+```
+
+PNG channel quantization is bounded, but H.264
+and calibration differences have not been measured with paired frames.
+`DataConfig.tactile_representation_source` records either
+`raw_sdk_normalized` or `legacy_video_reconstructed`, both declared as
+`policy_normalized` at the encoder boundary. Before new training starts,
+choose a canonical tactile representation. Prefer SDK depth normalized once
+when lossless raw depth is available. If only legacy visualization video is
+available, use `(R-B)/255` for training and assess deployment representation
+matching. This stage does not change the robot runtime.
 
 **IMPORTANT: Normalization statistics MUST be fitted using TRAIN SPLIT ONLY.
 Never fit on validation/test data.** Old DP checkpoint statistics must not be
-used for the newly collected dataset. `MinMaxNormalizer` fits the last channel
-over `[N,H,D]` or `[N,T,D]`, maps ordinary training limits to `[-1,1]`, handles
-constant channels, and stores JSON-friendly statistics. `FeatureNormalizer`
-leaves room for later quantile or mean/std implementations. The choice of
-min/max is provisional.
+used for the newly collected dataset. The legacy `MinMaxNormalizer` remains
+version 1. The new `normalization` package supplies identity, mean/std,
+min/max v2, quantile, and physical fixed-range methods. Structured action
+normalization splits translation 3 / rotation 6 / gripper 1; structured state
+normalization splits joints 6 / gripper 1. Both serialize train-only statistics,
+floor flags, modes, model contract, and tactile provenance. The three action
+and two state YAML files are experimental candidates, not final choices.
+Min/max v2 sends near-constant channels to the output midpoint and restores
+their training center on inverse transformation; those tiny variations are
+intentionally discarded. Mean/std and quantile use configurable floors.
+`analyze_action_distribution` reports channel tails, horizon profiles, and
+Gaussian-source flow velocity scale. The older `MinMaxNormalizer` fits the
+last channel over `[N,H,D]` or `[N,T,D]`, maps ordinary training limits to
+`[-1,1]`, handles constant channels, and stores JSON-friendly version-1
+statistics. The new methods do not reinterpret that format.
 
 `FlowSource.sample(target_action, condition=None, history=None,
 generator=None)` defines an action-shaped source. Only `GaussianSource` exists

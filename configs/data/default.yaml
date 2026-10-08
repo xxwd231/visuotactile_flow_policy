@@ -4,3 +4,8 @@ action_label_source: measured_future
 observation_history: 3
 action_horizon: 16
 action_dim: 10
+state_dim: 7
+control_frequency_hz: 30
+target_start_offset_steps: 1
+tactile_encoding: policy_normalized
+tactile_representation_source: raw_sdk_normalized
