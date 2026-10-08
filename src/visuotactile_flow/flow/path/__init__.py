@@ -1,4 +1,4 @@
-from .base import PathSample
+from .base import FlowPath, PathSample
 from .linear import LinearConditionalFlowPath
 
-__all__ = ["PathSample", "LinearConditionalFlowPath"]
+__all__ = ["FlowPath", "PathSample", "LinearConditionalFlowPath"]

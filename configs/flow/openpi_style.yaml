@@ -10,3 +10,9 @@ time_sampler:
   beta: 1.0
   scale: 0.999
   offset: 0.001
+objective:
+  type: conditional_flow_matching
+  loss: mse
+solver:
+  type: euler
+  num_steps: 10

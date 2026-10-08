@@ -22,7 +22,37 @@ during inference. Uniform sampling accepts a seeded `torch.Generator`.
 `BetaTimeSampler` currently uses the global PyTorch RNG and rejects a
 generator argument; optional time complementation must be explicit.
 Timestep features use float32 normalized-time sin/cos with periods from
-0.004 to 4.0 before the learned MLP. This stage has no CFM loss or solver.
+0.004 to 4.0 before the learned MLP.
+
+The Standard Conditional Flow Matching core now has an objective and an
+Euler solver. The objective accepts **already normalized action** `a`
+from a future `ActionCodec → StructuredActionNormalizer` training chain.
+It does not encode, normalize, or denormalize actions. With `NOISE_AT_ZERO`:
+
+```text
+z ~ N(0,I), t ~ Uniform(0,1)
+x_t = (1-t)z + ta
+u_t = a-z
+loss = mean((v_theta(x_t,t,C)-u_t)^2)
+```
+
+An optional boolean `action_valid_mask[B,H]` excludes invalid steps from
+the loss. Its denominator is `valid_step_count * D`; it does not alter the
+path sample. Inference starts with Gaussian noise and uses explicit Euler
+from t=0 to t=1:
+
+```text
+x_(k+1) = x_k + (t_(k+1)-t_k) * v_theta(x_k,t_k,C)
+```
+
+The result remains a **normalized action**. A future policy wrapper must
+denormalize it, decode it with `ActionCodec`, and form robot commands.
+`NOISE_AT_ONE` uses the same objective and solver with reversed endpoints
+and velocity sign. Both YAML files declare an initial 10-step Euler recipe;
+10 expert forwards are not a 30 Hz real-time guarantee. Timing must later
+include the full encoders, condition adapter, expert × NFE, IPC, and robot
+command path. The old deployment's skipped first four actions have no
+confirmed latency explanation.
 
 ## Confirmed robot contract
 

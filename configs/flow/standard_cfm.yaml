@@ -7,3 +7,9 @@ time_sampler:
   type: uniform
   min_time: 0.0
   max_time: 1.0
+objective:
+  type: conditional_flow_matching
+  loss: mse
+solver:
+  type: euler
+  num_steps: 10
