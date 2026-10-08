@@ -78,6 +78,33 @@ These details were checked against the existing repository at
 and the sibling `tactile_RL` implementation. They document compatibility;
 the runtime package does not import the old implementation or checkpoints.
 
+## Current real data
+
+Current real-data experiments use the converted `insertion_task_3` LeRobot
+v2.1 dataset. Old USB datasets, Zarr stores, and RL caches are deprecated as
+training and overfit inputs. Their encoder provenance remains relevant to the
+encoder initialization policy documented below.
+
+The explicit data config is `configs/data/insertion_task_3_lerobot.yaml`.
+Install the optional `realdata` dependencies to read Parquet and H.264 video.
+`LeRobotV21EpisodeAdapter(dataset_root, episode_index, data_config)` reads one
+episode and exposes complete anchor indices; `get_window(anchor_index)` returns
+a `TrainingSample` with observations at `t-2:t` and measured targets at
+`t+1:t+16`. It decodes RGB with PyAV `rgb24`, resizes RGB to 320×240 with
+antialiased bilinear interpolation, and reconstructs the two tactile depth
+visualizations as `(R-B)/255`. Those auxiliary depth videos are H.264 and the
+result is declared `legacy_video_reconstructed`, not lossless SDK depth.
+Frames are decoded on demand with a bounded cache. Action and state
+normalization remain in the policy, outside this adapter.
+
+Inspect a real window without training:
+
+```sh
+python tools/inspect_real_episode.py \
+  --dataset-root /home/pine/pine_data/lerobot_teleop_dmtac_marker_v4_gpu_force/insertion_task_3 \
+  --episode 0 --anchor 456
+```
+
 ## Reused encoders
 
 The audited backbone is `torchvision.models.resnet18(weights=None)` with

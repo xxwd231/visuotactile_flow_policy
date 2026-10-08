@@ -11,6 +11,7 @@ dependencies = ["numpy", "torch", "torchvision", "PyYAML"]
 
 [project.optional-dependencies]
 test = ["pytest"]
+realdata = ["pyarrow", "av"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
